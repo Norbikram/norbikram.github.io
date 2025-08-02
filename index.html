@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IQ Booster Quiz</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .container { max-width: 600px; margin: auto; }
+    .screen { display: none; }
+    .active { display: block; }
+    label, input[type="radio"] {
+      font-size: 1.1rem;
+      padding: 10px;
+      display: block;
+    }
+    label.correct { background: #c8e6c9; }
+    label.wrong { background: #ffcdd2; }
+    button { padding: 10px 20px; margin: 10px 5px; font-size: 1rem; }
+    .avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; display: none; }
+    .progress { margin-bottom: 10px; }
+    #achievementModal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center;
+    }
+    #achievementModalContent {
+      background: #fff; padding: 20px; border-radius: 10px;
+    }
+    #options label { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+      <h2>Welcome to IQ Booster</h2>
+      <input type="text" id="username" placeholder="Enter your name" />
+      <input type="file" id="avatarUpload" />
+      <p id="avatarLoading" style="display:none;">Uploading...</p>
+      <button onclick="startDashboard()">Continue</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="screen">
+      <h2>Hello, <span id="userName"></span></h2>
+      <img id="userAvatar" class="avatar" alt="Avatar" />
+      <button onclick="startQuiz()">Start Quiz</button>
+      <button id="resumeBtn" onclick="resumeQuiz()">Resume Quiz</button>
+      <button onclick="viewAchievements()">Achievements</button>
+      <button onclick="toggleSound()" id="soundToggle">🔊</button>
+    </div>
+
+    <!-- Quiz Area -->
+    <div id="quizArea" class="screen" aria-live="polite">
+      <div class="progress">Question <span id="progressNum"></span> of <span id="totalNum"></span></div>
+      <h3 id="questionText"></h3>
+      <div id="options"></div>
+      <div>Time Left: <span id="timeLeft" aria-live="polite">15</span>s</div>
+      <button id="submitBtn" onclick="submitAnswer()">Submit</button>
+      <button id="nextBtn" onclick="nextQuestion()" style="display:none;">Next</button>
+    </div>
+
+    <!-- Summary -->
+    <div id="summary" class="screen">
+      <h2>Quiz Summary</h2>
+      <div id="summaryContent"></div>
+      <button onclick="goToDashboard()">Back to Dashboard</button>
+      <button onclick="shareScore()">Share Score</button>
+    </div>
+  </div>
+
+  <!-- Achievements Modal -->
+  <div id="achievementModal" onclick="closeAchievementModal(event)">
+    <div id="achievementModalContent">
+      <h3>Your Achievements</h3>
+      <ul id="achievementList"></ul>
+    </div>
+  </div>
+
+  <!-- Audio -->
+  <audio id="correctSound" src="https://www.soundjay.com/button/sounds/button-10.mp3" preload="auto"></audio>
+  <audio id="wrongSound" src="https://www.soundjay.com/button/sounds/button-16.mp3" preload="auto"></audio>
+
+  <!-- Script -->
+  <script>
+  const questions = [
+        {
+        question: "What is the capital of Nepal?",
+        options: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
+        answer: "Kathmandu"
+        },
+        {
+        question: "Which planet is known as the Red Planet?",
+        options: ["Earth", "Mars", "Venus", "Jupiter"],
+        answer: "Mars"
+        },
+        {
+        question: "Who wrote the national anthem of India?",
+        options: ["Bankim Chandra", "Mahatma Gandhi", "Rabindranath Tagore", "Jawaharlal Nehru"],
+        answer: "Rabindranath Tagore"
+        },
+        {
+        question: "What is the capital of Australia?",
+        options: ["Sydney", "Melbourne", "Canberra", "Perth"],
+        answer: "Canberra"
+        },
+        {
+        question: "Which gas do plants absorb from the atmosphere?",
+        options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"],
+        answer:"Carbon Dioxide"
+        },
+        {
+        question: " What is the world’s most spoken language by native speakers?",
+        options: ["Mandarin Chinese", "Portuguese", "Spanish", "English"],
+        answer: "Mandarin Chinese"
+        },
+        {
+        question: "What is the tallest mammal on Earth?",
+        options: ["Elephant", "Blue Whale", "Giraffe", "Hippopotamus"],
+        answer: "Giraffe"
+        },
+        {
+        question: "What is the hardest mineral?",
+        options: ["Gold", "Titanium", "Vibranium", "Diamond"],
+        answer:"Diamond"
+        },
+        {
+        question: "Who wrote the famous song Ful Ko Aakha Ma",
+        options: ["Narayan Gopal", "Ani Choying Dolma", "Udit Narayan Jha", "Deepa Jha"],
+        answer:"Ani Choying Dolma"
+        },
+        {
+        question: "Which is the smallest district of Nepal",
+        options: ["Bhadrapur", "Dolpa", "Kathmandu", "Bhaktapur"],
+        answer: "Bhaktapur"
+        },
+        {
+        question: "What is the chemical symbol for water?",
+        options: ["O2", "CO2", "NaCl", "H2O"],
+        answer:"H2O"
+        },
+        {
+        question: "What does 'HTTP' stand for?",
+        options: ["HyperText Transfer Protocol", "High text Transmission Protocol", "HyperText Translate Program", "High Transmission Text Protocol"],
+        answer: "HyperText Transfer Protocol"
+        },
+        {
+        question: "How many months have 28 days?",
+        options: ["1", "12", "10", "11"],
+        answer: "12"
+        },
+        {
+        question: "In which year did World War II end?",
+        options: ["1945", "1942", "1948", "1950"],
+        answer: "1945"
+        },
+        {
+        question: "What planet is closest to the sun?",
+        options: ["Earth", "Mars", "Mercury", "Venus"],
+        answer: "Mercury"
+        },
+        {
+        question: "How many bones are in the human body?",
+        options: ["206", "400", "216", "315"],
+        answer: "206"
+        },
+        {
+        question: " Who wrote the book To Kill a Mockingbird?",
+        options: ["J.K Rowling", "Harper Lee", "William Shakespeare", "Charles Dickens"],
+        answer: "Harper Lee"
+        },
+        {
+        question: "Which is the most populated U.S State?",
+        options: ["New York", "Washington", "California", "Texas"],
+        answer: "California"
+        },
+        {
+        question: "How many continents are there in the world?",
+        options: ["5", "6", "7", "8"],
+        answer: "7"
+        },
+        {
+        question: "HTML stands for?",
+        options: ["Hyper Trainer Marking Language", "Hyper Text Markup Language", "Hyper Text Marketing Language", "High Text Markup Language"],
+        answer: "Hyper Text Markup Language"
+        },
+        {
+        question: "Who wrote 'Muna Madan'?",
+        options: ["Laxmi Prasad Devkota", "Bhanubhakta Acharya", "Buddha", "Parijat"],
+        answer: "Laxmi Prasad Devkota"
+        },
+        {
+        question: "What is the boiling point of water?",
+        options: ["100°C", "90°C", "120°C", "80°C"],
+        answer:"100°C"
+        },
+        {
+        question: "What is the largest ocean on Earth?",
+        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+        answer: "Pacific Ocean"
+        },
+        {
+        question: "What is the capital of Japan?",
+        options: ["Tokyo", "Kyoto", "Osaka", "Hiroshima"],
+        answer: "Tokyo"
+        },
+        {
+        question: "What is the largest planet in our solar system?",
+        options: ["Earth", "Mars", "Jupiter", "Saturn"],
+        answer: "Jupiter"
+        },
+        {
+        question: "What is the main ingredient in guacamole?",
+        options: ["Tomato", "Avocado", "Onion", "Pepper"],
+        answer: "Avocado"
+        },
+        {
+        question: "What is the capital of France?",
+        options: ["Berlin", "Madrid", "Paris", "Rome"],
+        answer: "Paris"
+        },
+        {
+        question: "What is the largest mammal in the world?",
+        options: ["Elephant", "Blue Whale", "Giraffe", "Hippopotamus"],
+        answer: "Blue Whale"
+        },
+        {
+        question: "What is the chemical symbol for gold?",
+        options: ["Au", "Ag", "Pb", "Fe"],
+        answer: "Au"
+        },
+
+        {
+        question: "Which mountain is the highest in the world?",
+        options: ["K2", "Kangchenjunga", "Lhotse", "Mount Everest"],
+        answer: "Mount Everest"
+        },
+        {
+        question: "Which river flows through Kathmandu?",
+        options: ["Koshi", "Bagmati", "Gandaki", "Rapti"],
+        answer: "Bagmati"
+        },
+        {
+        question: "What is Nepal’s national flower?",
+        options: ["Sunflower", "Lily", "Rhododendron", "Rose"],
+        answer: "Rhododendron"
+        },
+        {
+        question: "What is the currency of Nepal?",
+        options: ["Nepali Rupee", "Indian Rupee", "Yen", "Dollar"],
+        answer: "Nepali Rupee"
+        }
+        ];
+
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timer;
+    let timeLeft = 15;
+    let quizProgress = [];
+    let soundOn = true;
+    let achievements = JSON.parse(localStorage.getItem("achievements")) || [];
+
+    const correctSound = document.getElementById("correctSound");
+    const wrongSound = document.getElementById("wrongSound");
+
+    function startDashboard() {
+      const name = document.getElementById("username").value.trim();
+      if (!name) return alert("Please enter your name");
+      localStorage.setItem("quizName", name);
+      document.getElementById("userName").innerText = name;
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+
+      const avatar = localStorage.getItem("quizAvatar");
+      if (avatar) {
+        document.getElementById("userAvatar").src = avatar;
+        document.getElementById("userAvatar").style.display = "inline-block";
+      }
+      document.getElementById("resumeBtn").style.display = quizProgress.length > 0 ? "block" : "none";
+    }
+
+    document.getElementById("avatarUpload").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById("avatarLoading").style.display = "block";
+      const reader = new FileReader();
+      reader.onload = function (evt) {
+        localStorage.setItem("quizAvatar", evt.target.result);
+        document.getElementById("avatarLoading").style.display = "none";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function startQuiz() {
+      score = 0;
+      currentQuestionIndex = 0;
+      quizProgress = [];
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("summary").style.display = "none";
+      document.getElementById("quizArea").style.display = "block";
+      questions.sort(() => Math.random() - 0.5);
+      loadQuestion();
+    }
+
+    function resumeQuiz() {
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("quizArea").style.display = "block";
+      loadQuestion();
+    }
+
+    function loadQuestion() {
+      const q = questions[currentQuestionIndex];
+      document.getElementById("progressNum").innerText = currentQuestionIndex + 1;
+      document.getElementById("totalNum").innerText = questions.length;
+      document.getElementById("questionText").innerText = q.question;
+
+      const optionsDiv = document.getElementById("options");
+      optionsDiv.innerHTML = "";
+
+      const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+      shuffled.forEach(opt => {
+        const id = "opt_" + opt.replace(/\s+/g, "_");
+        const wrapper = document.createElement("div");
+       wrapper.innerHTML = `
+  <input type="radio" name="option" id="${id}" value="${opt}" aria-label="${opt}" />
+  <label for="${id}" tabindex="0">${opt}</label>
+`;
+        optionsDiv.appendChild(wrapper);
+      });
+
+      document.getElementById("submitBtn").disabled = false;
+      document.getElementById("nextBtn").style.display = "none";
+
+      startTimer();
+    }
+
+    function startTimer() {
+      timeLeft = 15;
+      document.getElementById("timeLeft").innerText = timeLeft;
+      clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timeLeft").innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          autoSubmit();
+        }
+      }, 1000);
+    }
+
+function submitAnswer() {
+  const selected = document.querySelector("input[name='option']:checked");
+  if (!selected) return alert("Please select an option.");
+  clearInterval(timer);
+
+  const correct = questions[currentQuestionIndex].answer;
+  const userAnswer = selected.value;
+
+  if (userAnswer === correct) {
+    score++;
+    if (soundOn) correctSound.play();
+  } else {
+    if (soundOn) wrongSound.play();
+  }
+
+  showFeedback(userAnswer);
+  document.getElementById("submitBtn").disabled = true;
+  setTimeout(() => {
+    nextQuestion();
+  }, 1200);
+}
+
+function autoSubmit() {
+  showFeedback(null);
+  if (soundOn) wrongSound.play();
+  document.getElementById("submitBtn").disabled = true;
+  setTimeout(() => {
+    nextQuestion();
+  }, 1200);
+}
+
+    function showFeedback(userAnswer) {
+      const correct = questions[currentQuestionIndex].answer;
+      document.querySelectorAll("input[name='option']").forEach(input => {
+        const label = input.nextElementSibling;
+        if (input.value === correct) label.classList.add("correct");
+        else if (input.value === userAnswer) label.classList.add("wrong");
+      });
+    }
+
+    function nextQuestion() {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < questions.length) {
+        loadQuestion();
+      } else {
+        showSummary();
+      }
+    }
+
+    function showSummary() {
+      document.getElementById("quizArea").style.display = "none";
+      document.getElementById("summary").style.display = "block";
+      document.getElementById("summaryContent").innerHTML = `<p>Your score: ${score}/${questions.length}</p>`;
+      updateAchievements();
+    }
+
+    function goToDashboard() {
+      document.getElementById("summary").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+    }
+
+function shareScore() {
+  const text = `I scored ${score}/${questions.length} in IQ Booster Quiz!`;
+  if (navigator.share) {
+    navigator.share({ title: "Quiz Score", text });
+  } else {
+    navigator.clipboard.writeText(text);
+    alert("Score copied to clipboard!");
+  }
+}
+
+    function toggleSound() {
+      soundOn = !soundOn;
+      document.getElementById("soundToggle").innerText = soundOn ? "🔊" : "🔇";
+    }
+
+  function viewAchievements() {
+  document.getElementById("achievementModal").style.display = "flex";
+  const list = document.getElementById("achievementList");
+  list.innerHTML = achievements.map(a => `<li>${a}</li>`).join("");
+}
+
+    function closeAchievementModal(event) {
+      if (!event || event.target.id === "achievementModal") {
+        document.getElementById("achievementModal").style.display = "none";
+      }
+    }
+
+    function updateAchievements() {
+      if (score === questions.length && !achievements.includes("Perfect Score")) {
+        achievements.push("Perfect Score");
+      }
+      if (score >= Math.ceil(questions.length / 2) && !achievements.includes("Halfway There")) {
+        achievements.push("Halfway There");
+      }
+      localStorage.setItem("achievements", JSON.stringify(achievements));
+    }
+  </script>
+</body>
+</html>
